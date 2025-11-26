@@ -11,6 +11,7 @@ use burn::{
         LearnerBuilder, LearningStrategy,
     },
 };
+use clap::Parser;
 
 use crate::{
     data::{STMBatcher, STMDataset},
@@ -20,13 +21,64 @@ use crate::{
 
 // Backend selection: CUDA for cluster, NdArray for local testing
 #[cfg(feature = "cuda")]
-type MyBackend = burn::backend::LibTorch<f32>;
+type MyBackend = burn::backend::Cuda;
 
 #[cfg(not(feature = "cuda"))]
 type MyBackend = burn::backend::NdArray;
 
 // Training backend (with autodiff)
 type MyAutodiffBackend = Autodiff<MyBackend>;
+
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    // Training Hyperparameters
+    #[arg(short, long, default_value_t = 1e-3)]
+    learning_rate: f64,
+
+    #[arg(short, long, default_value_t = 32)]
+    batch_size: usize,
+
+    #[arg(short, long, default_value_t = 10)]
+    num_epochs: usize,
+
+    #[arg(short, long, default_value_t = 42)]
+    seed: u64,
+
+    #[arg(short, long, default_value_t = 4)]
+    num_workers: u64,
+
+    // Model Architecture
+    #[arg(long, default_value_t = 256)]
+    d_model: usize,
+
+    #[arg(long, default_value_t = 8)]
+    num_heads: usize,
+
+    #[arg(long, default_value_t = 4)]
+    num_layers: usize,
+
+    #[arg(default_value_t = 0.1)]
+    dropout: f64,
+
+    // Data
+    #[arg(long, default_value_t = String::from("data/processed_data.npz"))]
+    data_path: String,
+
+    #[arg(long, default_value_t = 0.7)]
+    train_ratio: f32,
+
+    #[arg(long, default_value_t = 0.15)]
+    val_ratio: f32,
+
+    // Checkpoints and Logging
+    #[arg(long, default_value_t = String::from("./checkpoints"))]
+    checkpoint_dir: String,
+
+    // Class Weights
+    #[arg(long, default_value_t = true)]
+    use_class_weights: bool,
+}
 
 fn main() {
     // Set up device
