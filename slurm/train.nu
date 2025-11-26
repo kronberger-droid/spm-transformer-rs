@@ -18,7 +18,7 @@
 # Directories
 let code_dir = $"($env.HOME)/Programming/rust/spm-transformer"
 let container = "/share/rusty-tip/apptainer/stm-transformer.sif"
-let data_dir = $env.DATA
+let data_dir = "/share/rusty-tip"
 let data_path = $"($data_dir)/processed_data.npz"
 let output_dir = $"($data_dir)/checkpoints/($env.SLURM_JOB_ID)"
 
