@@ -17,6 +17,7 @@
 
 # Directories
 let code_dir = $"($env.HOME)/Programming/rust/spm-transformer"
+let container = "/share/rusty-tip/apptainer/stm-transformer.sif"
 let data_dir = $env.DATA
 let data_path = $"($data_dir)/processed_data.npz"
 let output_dir = $"($data_dir)/checkpoints/($env.SLURM_JOB_ID)"
@@ -30,30 +31,30 @@ cd $code_dir
 # Print useful information
 print $"
 Job Information:
-Job ID: ($env.SLURM_JOB_ID)
-Job Name: ($env.SLURM_JOB_NAME)
-Node: ($env.SLURM_NODELIST)
-Working Directory: ($env.PWD)
-Start Time: (date now | format date '%Y-%m-%d %H:%M:%S')
+  Job ID: ($env.SLURM_JOB_ID)
+  Job Name: ($env.SLURM_JOB_NAME)
+  Node: ($env.SLURM_NODELIST)
+  Working Directory: ($env.PWD)
+  Start Time: (date now | format date '%Y-%m-%d %H:%M:%S')
 
 System Information:
-CPUs allocated: ($env.SLURM_CPUS_PER_TASK)
-Memory allocated: ($env.SLURM_MEM_PER_NODE)MB
-GPU: ($env.CUDA_VISIBLE_DEVICES)
+  CPUs allocated: ($env.SLURM_CPUS_PER_TASK)
+  Memory allocated: ($env.SLURM_MEM_PER_NODE)MB
+  GPU: ($env.CUDA_VISIBLE_DEVICES)
 "
 
-# Print Rust and CUDA info
-print "Build Environment:"
-^rustc --version
-^cargo --version
-^nvcc --version | head -n 1
+# Print Rust and CUDA info from container
+print "Build Environment (inside container):"
+^apptainer exec $container rustc --version
+^apptainer exec $container cargo --version
 
 # ===========
 # Build Phase
 # ===========
 
-print "\nBuilding with CUDA support..."
-^cargo build --release --features cuda
+print "\nBuilding with CUDA support inside container..."
+^apptainer exec --nv --bind $"($code_dir):/app" $container sh -c "cd /app && 
+cargo build --release --features cuda"
 
 if $env.LAST_EXIT_CODE != 0 {
   print "Build failed!"
@@ -72,24 +73,28 @@ let num_heads = 8
 let num_layers = 4
 
 print $"\nStarting training with configuration:
-Epochs: ($epochs)
-Batch size: ($batch_size)
-Learning rate: ($lr)
-Model: d_model=($d_model), heads=($num_heads), layers=($num_layers)
-Data: ($data_path)
-Output: ($output_dir)
+  Epochs: ($epochs)
+  Batch size: ($batch_size)
+  Learning rate: ($lr)
+  Model: d_model=($d_model), heads=($num_heads), layers=($num_layers)
+  Data: ($data_path)
+  Output: ($output_dir)
 "
 
 let cmd = [
-  "./target/release/stm-transformer"
+  "apptainer" "exec" "--nv"
+  "--bind" $"($code_dir):/app"
+  "--bind" $"($data_dir):/data"
+  $container
+  "/app/target/release/stm-transformer"
   "--learning-rate" $"($lr)"
   "--batch-size" $"($batch_size)"
   "--num-epochs" $"($epochs)"
   "--d-model" $"($d_model)"
   "--num-heads" $"($num_heads)"
   "--num-layers" $"($num_layers)"
-  "--data-path" $data_path
-  "--checkpoint-dir" $output_dir
+  "--data-path" "/data/processed_data.npz"
+  "--checkpoint-dir" $"/data/checkpoints/($env.SLURM_JOB_ID)"
   "--num-workers" $"($env.SLURM_CPUS_PER_TASK)"
   "--use-class-weights"
 ]
@@ -105,9 +110,11 @@ print ""
 if $exit_code == 0 {
   print $"
 ✓ Training completed successfully!
-Checkpoints saved to: ($output_dir)
-Job ID: ($env.SLURM_JOB_ID)
+  Checkpoints saved to: ($output_dir)
+  Job ID: ($env.SLURM_JOB_ID)
 "
 } else {
   print $"✗ Training failed with exit code: ($exit_code)"
 }
+
+exit $exit_code
