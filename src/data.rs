@@ -183,8 +183,8 @@ impl<B: Backend> Batcher<B, STMItem, STMBatch<B>> for STMBatcher<B> {
             .collect();
 
         // Collect all labels into flat Vector
-        let labels_vec: Vec<i64> =
-            items.iter().map(|item| item.label).collect();
+        let labels_vec: Vec<i32> =
+            items.iter().map(|item| item.label as i32).collect();
 
         // Convert to tensors
         let images = Tensor::from_data(
