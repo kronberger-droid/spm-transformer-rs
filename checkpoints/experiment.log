@@ -1,0 +1,29 @@
+2025-11-26T13:35:08.983086Z  INFO burn_train::learner::train_val: Fitting the model:
+ ScanLineEncoder {
+  line_embedding: Linear {d_input: 128, d_output: 256, bias: true, params: 33024}
+  pos_embedding: Embedding {n_embedding: 129, d_model: 256, params: 33024}
+  cls_token: ParamTensor {rank: 1, shape: [256], kind: float}
+  transformer: TransformerEncoder {d_model: 256, d_ff: 1024, n_heads: 8, n_layers: 4, dropout: 0.1, norm_first: true, quiet_softmax: false, params: 3159040}
+  norm: LayerNorm {d_model: 256, epsilon: 0.00001, params: 512}
+  classifier: Linear {d_input: 256, d_output: 6, bias: true, params: 1542}
+  dropout: Dropout {prob: 0.1}
+  params: 3227398
+}
+2025-11-26T13:35:09.066750Z  INFO burn_train::learner::strategies::single::epoch: Executing training step for epoch 1
+2025-11-26T13:35:09.103131Z  INFO burn_train::learner::strategies::single::epoch: Iteration 1
+2025-11-26T13:35:18.233639Z  INFO burn_train::learner::strategies::single::epoch: Iteration 2
+2025-11-26T13:35:27.322377Z  INFO burn_train::learner::strategies::single::epoch: Iteration 3
+2025-11-26T13:35:36.393487Z  INFO burn_train::learner::strategies::single::epoch: Iteration 4
+2025-11-26T13:35:45.554692Z  INFO burn_train::learner::strategies::single::epoch: Iteration 5
+2025-11-26T13:35:54.487899Z  INFO burn_train::learner::strategies::single::epoch: Iteration 6
+2025-11-26T13:36:03.737266Z  INFO burn_train::learner::strategies::single::epoch: Iteration 7
+2025-11-26T13:36:12.942534Z  INFO burn_train::learner::strategies::single::epoch: Iteration 8
+2025-11-26T13:36:22.264195Z  INFO burn_train::learner::strategies::single::epoch: Iteration 9
+2025-11-26T13:36:31.258555Z  INFO burn_train::learner::strategies::single::epoch: Iteration 10
+2025-11-26T13:36:40.476497Z  INFO burn_train::learner::strategies::single::epoch: Iteration 11
+2025-11-26T13:36:49.518449Z  INFO burn_train::learner::strategies::single::epoch: Iteration 12
+2025-11-26T13:36:58.132821Z  INFO burn_train::learner::strategies::single::epoch: Iteration 13
+2025-11-26T13:37:07.250326Z  INFO burn_train::learner::strategies::single::epoch: Iteration 14
+2025-11-26T13:37:17.562020Z  INFO burn_train::learner::strategies::single::epoch: Iteration 15
+2025-11-26T13:37:27.438350Z  INFO burn_train::learner::strategies::single::epoch: Iteration 16
+2025-11-26T13:37:36.996694Z  INFO burn_train::learner::strategies::single::epoch: Training interrupted.
