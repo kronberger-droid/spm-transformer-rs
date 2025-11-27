@@ -47,6 +47,15 @@
               cargo-expand
               # Optional REPL shell
               nushell
+
+              (pkgs.python3.withPackages (ps:
+                with ps; [
+                  numpy
+                  pandas
+                  scipy
+                  matplotlib
+                  h5py
+                ]))
             ];
 
           # Customize shell behavior here
