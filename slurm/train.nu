@@ -16,9 +16,9 @@
 # =================
 
 # Directories
-let code_dir = $"($env.HOME)/Programming/rust/spm-transformer"
+let code_dir = $"($env.HOME)/rust/spm-transformer-rs"
 let container = "/share/rusty-tip/apptainer/stm-transformer.sif"
-let data_dir = "/share/rusty-tip"
+let data_dir = "/share/rusty-tip/data"
 let data_path = $"($data_dir)/processed_data.npz"
 let output_dir = $"($data_dir)/checkpoints/($env.SLURM_JOB_ID)"
 
@@ -81,8 +81,9 @@ print $"\nStarting training with configuration:
   Output: ($output_dir)
 "
 
-let cmd = [
-  "apptainer" "exec" "--nv"
+# Training arguments (without the apptainer command itself)
+let args = [
+  "exec" "--nv"
   "--bind" $"($code_dir):/app"
   "--bind" $"($data_dir):/data"
   $container
@@ -100,7 +101,7 @@ let cmd = [
 ]
 
 # Run training
-...$cmd
+^apptainer ...$args
 
 # Capture exit code
 let exit_code = $env.LAST_EXIT_CODE
