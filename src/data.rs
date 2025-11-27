@@ -2,8 +2,7 @@ use std::fs::File;
 
 use anyhow::{bail, Context, Result};
 use burn::{
-    data::dataset::Dataset,
-    prelude::*,
+    data::{dataloader::batcher::Batcher, dataset::Dataset},
     tensor::{backend::Backend, Int, Tensor, TensorData},
 };
 use ndarray_npy::NpzReader;
@@ -23,7 +22,7 @@ impl<B: Backend> STMDataset<B> {
         // Create Images Tensor
         let images_nd: ndarray::Array3<f32> = npz.by_name("images")?;
 
-        let [n_samples, height, width] = images_nd.shape() else {
+        let [_n_samples, height, width] = images_nd.shape() else {
             bail!("Expected 3D image array, got shape {:?}", images_nd.shape());
         };
 
@@ -37,14 +36,21 @@ impl<B: Backend> STMDataset<B> {
 
         let images = Tensor::from_data(images_data, device);
 
-        // Create Labels Tensor
+        // Create Labels Tensor - convert i64 to i32 for Burn's Int type
         let labels_nd: ndarray::Array1<i64> = npz.by_name("labels")?;
         let shape = labels_nd.shape().to_vec();
-        let labels_data =
-            TensorData::new(labels_nd.into_raw_vec_and_offset().0, shape);
 
+        // Convert i64 to i32
+        let labels_i32: Vec<i32> = labels_nd
+            .into_raw_vec_and_offset()
+            .0
+            .iter()
+            .map(|&x| x as i32)
+            .collect();
+
+        let labels_data = TensorData::new(labels_i32, shape);
         let labels = Tensor::<B, 1, Int>::from_data(
-            labels_data.convert::<i64>(),
+            labels_data.convert::<i32>(),
             device,
         );
 
@@ -76,10 +82,10 @@ impl<B: Backend> STMDataset<B> {
             indices.shuffle(&mut rng);
         }
 
-        let indices_i64: Vec<i64> = indices.iter().map(|&i| i as i64).collect();
+        let indices_i32: Vec<i32> = indices.iter().map(|&i| i as i32).collect();
 
         let indices_tensor = Tensor::<B, 1, Int>::from_data(
-            TensorData::from(indices_i64.as_slice()),
+            TensorData::from(indices_i32.as_slice()),
             device,
         );
 
@@ -123,7 +129,7 @@ impl<B: Backend> Dataset<STMItem> for STMDataset<B> {
             .expect("There should be an image available");
 
         let label_vec = label_data
-            .to_vec::<i64>()
+            .to_vec::<i32>()
             .expect("There should be an label available");
 
         let label = label_vec[0];
@@ -156,19 +162,17 @@ pub struct STMBatch<B: Backend> {
 #[derive(Clone, Debug)]
 pub struct STMItem {
     pub image: Vec<f32>,
-    pub label: i64,
+    pub label: i32,
 }
-
-use burn::data::dataloader::batcher::Batcher;
 
 #[derive(Clone)]
 pub struct STMBatcher<B: Backend> {
-    device: B::Device,
+    _device: B::Device,
 }
 
 impl<B: Backend> STMBatcher<B> {
     pub fn new(device: B::Device) -> Self {
-        Self { device }
+        Self { _device: device }
     }
 }
 
@@ -184,7 +188,7 @@ impl<B: Backend> Batcher<B, STMItem, STMBatch<B>> for STMBatcher<B> {
 
         // Collect all labels into flat Vector
         let labels_vec: Vec<i32> =
-            items.iter().map(|item| item.label as i32).collect();
+            items.iter().map(|item| item.label).collect();
 
         // Convert to tensors
         let images = Tensor::from_data(
