@@ -3,3 +3,4 @@ data
 .direnv
 .envrc
 checkpoints/
+__pycache__
