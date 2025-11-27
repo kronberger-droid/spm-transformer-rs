@@ -17,42 +17,91 @@ impl<B: Backend> STMDataset<B> {
         // open file and load images
         let file =
             File::open(path).context(format!("failed to open {}", path))?;
+
         let mut npz = NpzReader::new(file)?;
 
-        // Create Images Tensor
-        let images_nd: ndarray::Array3<f32> = npz.by_name("images")?;
+        // Check if labels are i32 handle i64 and return Vec i32 _
+        let images_nd_f32: std::result::Result<ndarray::Array3<f32>, _> =
+            npz.by_name("images");
 
-        let [_n_samples, height, width] = images_nd.shape() else {
-            bail!("Expected 3D image array, got shape {:?}", images_nd.shape());
+        let (images_vec_f32, images_shape) = if let Ok(images_nd) =
+            images_nd_f32
+        {
+            let [_n, h, w] = images_nd.shape() else {
+                bail!("Expected 3D Array, got shape {:?}", images_nd.shape())
+            };
+
+            if *h != 128 || *w != 128 {
+                bail!("Expected 128x128 images")
+            }
+            let shape = images_nd.shape().to_vec();
+
+            let vec_f32 = images_nd.into_raw_vec_and_offset().0;
+
+            (vec_f32, shape)
+        } else {
+            let images_nd: ndarray::Array3<f64> = npz.by_name("images")?;
+            let [_n, h, w] = images_nd.shape() else {
+                bail!("Expected 3D Array, got shape {:?}", images_nd.shape())
+            };
+
+            if *h != 128 || *w != 128 {
+                bail!("Expected 128x128 images")
+            }
+
+            let shape = images_nd.shape().to_vec();
+
+            let vec_f32 = images_nd
+                .into_raw_vec_and_offset()
+                .0
+                .iter()
+                .map(|&x| x as f32)
+                .collect();
+
+            (vec_f32, shape)
         };
-
-        if *height != 128 || *width != 128 {
-            bail!("Expected 128x128 images, got {}x{}", height, width);
-        }
-
-        let shape = images_nd.shape().to_vec();
-        let images_data =
-            TensorData::new(images_nd.into_raw_vec_and_offset().0, shape);
-
+        let images_data = TensorData::new(images_vec_f32, images_shape);
         let images = Tensor::from_data(images_data, device);
 
-        // Create Labels Tensor - convert i64 to i32 for Burn's Int type
-        let labels_nd: ndarray::Array1<i64> = npz.by_name("labels")?;
-        let shape = labels_nd.shape().to_vec();
+        // Check if labels are i32 handle i64 and return Vec i32 _
+        let labels_nd_f32: std::result::Result<ndarray::Array1<i32>, _> =
+            npz.by_name("labels");
 
-        // Convert i64 to i32
-        let labels_i32: Vec<i32> = labels_nd
-            .into_raw_vec_and_offset()
-            .0
-            .iter()
-            .map(|&x| x as i32)
-            .collect();
+        let (labels_vec_f32, labels_shape) = if let Ok(labels_nd) =
+            labels_nd_f32
+        {
+            let [_n, h, w] = labels_nd.shape() else {
+                bail!("Expected 3D Array, got shape {:?}", labels_nd.shape())
+            };
 
-        let labels_data = TensorData::new(labels_i32, shape);
-        let labels = Tensor::<B, 1, Int>::from_data(
-            labels_data.convert::<i32>(),
-            device,
-        );
+            if *h != 128 || *w != 128 {
+                bail!("Expected 128x128 images")
+            }
+            let shape = labels_nd.shape().to_vec();
+
+            let vec_f32 = labels_nd.into_raw_vec_and_offset().0;
+
+            (vec_f32, shape)
+        } else {
+            let labels_nd: ndarray::Array1<i64> = npz.by_name("images")?;
+            let [_n] = labels_nd.shape() else {
+                bail!("Expected 1D Array, got shape {:?}", labels_nd.shape())
+            };
+
+            let shape = labels_nd.shape().to_vec();
+
+            let vec_f32 = labels_nd
+                .into_raw_vec_and_offset()
+                .0
+                .iter()
+                .map(|&x| x as i32)
+                .collect();
+
+            (vec_f32, shape)
+        };
+
+        let labels_data = TensorData::new(labels_vec_f32, labels_shape);
+        let labels = Tensor::from_data(labels_data, device);
 
         Ok(STMDataset { images, labels })
     }
