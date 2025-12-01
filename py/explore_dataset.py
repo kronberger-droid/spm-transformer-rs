@@ -23,11 +23,11 @@ print(f"First label: {labels[0]}")
 # Label mapping - update these with your actual label names
 LABEL_NAMES = {
     0: "0: individual atoms",
-    1: "horizontal_line",
-    2: "vertical_line",
-    3: "diagonal_line",
-    4: "cross",
-    5: "defect",
+    1: "1: horizontal_line",
+    2: "2: vertical_line",
+    3: "3: diagonal_line",
+    4: "4: cross",
+    5: "5: defect",
 }
 
 

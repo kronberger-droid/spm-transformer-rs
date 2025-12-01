@@ -70,20 +70,17 @@ impl<B: Backend> STMDataset<B> {
         let (labels_vec_f32, labels_shape) = if let Ok(labels_nd) =
             labels_nd_f32
         {
-            let [_n, h, w] = labels_nd.shape() else {
-                bail!("Expected 3D Array, got shape {:?}", labels_nd.shape())
+            let [_n] = labels_nd.shape() else {
+                bail!("Expected 1D Array, got shape {:?}", labels_nd.shape())
             };
 
-            if *h != 128 || *w != 128 {
-                bail!("Expected 128x128 images")
-            }
             let shape = labels_nd.shape().to_vec();
 
             let vec_f32 = labels_nd.into_raw_vec_and_offset().0;
 
             (vec_f32, shape)
         } else {
-            let labels_nd: ndarray::Array1<i64> = npz.by_name("images")?;
+            let labels_nd: ndarray::Array1<i64> = npz.by_name("labels")?;
             let [_n] = labels_nd.shape() else {
                 bail!("Expected 1D Array, got shape {:?}", labels_nd.shape())
             };
