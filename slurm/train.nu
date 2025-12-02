@@ -19,11 +19,10 @@
 let code_dir = $"($env.HOME)/rust/spm-transformer-rs"
 let container = "/share/rusty-tip/apptainer/stm-transformer.sif"
 let data_dir = "/share/rusty-tip/data"
-let data_path = $"($data_dir)/processed_data.npz"
-let output_dir = $"($data_dir)/checkpoints/($env.SLURM_JOB_ID)"
 
-# Create output directory
-mkdir $output_dir
+# Set environment variables for Rust to use
+$env.DATA_PATH = $"($data_dir)/processed_data.npz"
+$env.CHECKPOINT_BASE_DIR = $"($data_dir)/checkpoints"
 
 # Enter project directory
 cd $code_dir
@@ -67,18 +66,22 @@ if $env.LAST_EXIT_CODE != 0 {
 
 let epochs = 50
 let batch_size = 32
+# Learning rate
 let lr = 0.001
+# Model Dimension
 let d_model = 256
+# Attention heads per layer
 let num_heads = 8
-let num_layers = 4
+# Attention layers in model (defaults to 6 only for reference)
+let num_layers = 6
 
 print $"\nStarting training with configuration:
   Epochs: ($epochs)
   Batch size: ($batch_size)
   Learning rate: ($lr)
   Model: d_model=($d_model), heads=($num_heads), layers=($num_layers)
-  Data: ($data_path)
-  Output: ($output_dir)
+  Data: ($env.DATA_PATH)
+  Checkpoint base: ($env.CHECKPOINT_BASE_DIR)
 "
 
 # Training arguments (without the apptainer command itself)
@@ -86,6 +89,9 @@ let args = [
   "exec" "--nv"
   "--bind" $"($code_dir):/app"
   "--bind" $"($data_dir):/data"
+  "--env" $"DATA_PATH=($env.DATA_PATH)"
+  "--env" $"CHECKPOINT_BASE_DIR=($env.CHECKPOINT_BASE_DIR)"
+  "--env" $"SLURM_JOB_ID=($env.SLURM_JOB_ID)"
   $container
   "/app/target/release/stm-transformer"
   "--learning-rate" $"($lr)"
@@ -94,8 +100,6 @@ let args = [
   "--d-model" $"($d_model)"
   "--num-heads" $"($num_heads)"
   "--num-layers" $"($num_layers)"
-  "--data-path" "/data/processed_data.npz"
-  "--checkpoint-dir" $"/data/checkpoints/($env.SLURM_JOB_ID)"
   "--num-workers" $"($env.SLURM_CPUS_PER_TASK)"
   "--use-class-weights"
 ]
@@ -111,7 +115,7 @@ print ""
 if $exit_code == 0 {
   print $"
 ✓ Training completed successfully!
-  Checkpoints saved to: ($output_dir)
+  Checkpoints saved to: ($env.CHECKPOINT_BASE_DIR)/<timestamp>_j($env.SLURM_JOB_ID)
   Job ID: ($env.SLURM_JOB_ID)
 "
 } else {
