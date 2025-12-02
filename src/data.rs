@@ -119,6 +119,7 @@ impl<B: Backend> STMDataset<B> {
         self.labels.dims()[0]
     }
 
+    #[allow(dead_code)]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }

@@ -1,6 +1,5 @@
 mod data;
 mod model;
-mod training;
 
 use std::{fs::File, path::PathBuf};
 
