@@ -66,13 +66,10 @@ if $env.LAST_EXIT_CODE != 0 {
 
 let epochs = 50
 let batch_size = 32
-# Learning rate
-let lr = 0.001
-# Model Dimension
+let lr = 0.0001  # Fixed: was 0.001
+let warmup_epochs = 5
 let d_model = 256
-# Attention heads per layer
 let num_heads = 8
-# Attention layers in model (defaults to 6 only for reference)
 let num_layers = 6
 
 print $"\nStarting training with configuration:
@@ -97,11 +94,11 @@ let args = [
   "--learning-rate" $"($lr)"
   "--batch-size" $"($batch_size)"
   "--num-epochs" $"($epochs)"
+  "--warmup-epochs" $"($warmup_epochs)"
   "--d-model" $"($d_model)"
   "--num-heads" $"($num_heads)"
   "--num-layers" $"($num_layers)"
   "--num-workers" $"($env.SLURM_CPUS_PER_TASK)"
-  "--use-class-weights"
 ]
 
 # Run training
