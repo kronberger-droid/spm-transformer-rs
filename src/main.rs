@@ -177,8 +177,8 @@ fn main() {
     println!("  dropout: {}", model_config.dropout);
 
     // Train batcher uses autodiff (for gradients), valid uses plain backend
-    let batcher_train = STMBatcher::<MyAutodiffBackend>::new(device);
-    let batcher_valid = STMBatcher::<MyBackend>::new(device);
+    let batcher_train = STMBatcher::<MyAutodiffBackend>::new(device.clone());
+    let batcher_valid = STMBatcher::<MyBackend>::new(device.clone());
 
     println!("\nCreating dataloaders...");
     let dataloader_train = DataLoaderBuilder::new(batcher_train)
@@ -215,7 +215,7 @@ fn main() {
         .metric_train_numeric(LossMetric::new())
         .metric_valid_numeric(LossMetric::new())
         .with_file_checkpointer(burn::record::CompactRecorder::new())
-        .learning_strategy(LearningStrategy::SingleDevice(device))
+        .learning_strategy(LearningStrategy::SingleDevice(device.clone()))
         .num_epochs(args.num_epochs)
         .build(model, AdamConfig::new().init(), scheduler);
 
