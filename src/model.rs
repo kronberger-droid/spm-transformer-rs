@@ -40,10 +40,15 @@ pub struct ScanLineEncoder<B: Backend> {
     norm: LayerNorm<B>,
     classifier: Linear<B>,
     dropout: Dropout,
+    class_weights: Option<Vec<f32>>,
 }
 
 impl ScanLineEncoderConfig {
-    pub fn init<B: Backend>(&self, device: &B::Device) -> ScanLineEncoder<B> {
+    pub fn init<B: Backend>(
+        &self,
+        device: &B::Device,
+        class_weights: Option<Vec<f32>>,
+    ) -> ScanLineEncoder<B> {
         ScanLineEncoder {
             line_embedding: LinearConfig::new(
                 self.pixels_per_line,
@@ -73,6 +78,7 @@ impl ScanLineEncoderConfig {
             classifier: LinearConfig::new(self.d_model, self.num_classes)
                 .init(device),
             dropout: DropoutConfig::new(self.dropout).init(),
+            class_weights,
         }
     }
 }
@@ -144,7 +150,11 @@ impl<B: AutodiffBackend> TrainStep<STMBatch<B>, ClassificationOutput<B>>
     for ScanLineEncoder<B>
 {
     fn step(&self, item: STMBatch<B>) -> TrainOutput<ClassificationOutput<B>> {
-        let item = self.forward_classification(item.images, item.targets, None);
+        let item = self.forward_classification(
+            item.images,
+            item.targets,
+            self.class_weights.clone(),
+        );
 
         TrainOutput::new(self, item.loss.backward(), item)
     }
@@ -154,6 +164,10 @@ impl<B: Backend> ValidStep<STMBatch<B>, ClassificationOutput<B>>
     for ScanLineEncoder<B>
 {
     fn step(&self, item: STMBatch<B>) -> ClassificationOutput<B> {
-        self.forward_classification(item.images, item.targets, None) // TODO: Pass the class weights here
+        self.forward_classification(
+            item.images,
+            item.targets,
+            self.class_weights.clone(),
+        )
     }
 }
