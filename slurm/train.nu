@@ -42,27 +42,16 @@ System Information:
   GPU: ($env.CUDA_VISIBLE_DEVICES)
 "
 
-# Print Rust and CUDA info from container
-print "Build Environment (inside container):"
-^apptainer exec $container rustc --version
-^apptainer exec $container cargo --version
-
-# ===========
-# Build Phase
-# ===========
-
-print "\nBuilding with CUDA support inside container..."
-^apptainer exec --nv --bind $"($code_dir):/app" $container sh -c "cd /app && 
-cargo build --release --features cuda"
-
-if $env.LAST_EXIT_CODE != 0 {
-  print "Build failed!"
-  exit $env.LAST_EXIT_CODE
-}
-
 # ===========
 # Training
 # ===========
+
+# Check binary exists (should be built with slurm/build.nu first)
+if not (($"($code_dir)/target/release/stm-transformer" | path exists)) {
+  print "Error: Binary not found!"
+  print "Please run: sbatch slurm/build.nu first"
+  exit 1
+}
 
 let epochs = 50
 let batch_size = 32
