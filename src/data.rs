@@ -10,6 +10,8 @@ use ndarray_npy::NpzReader;
 pub struct STMDataset<B: Backend> {
     pub images: Tensor<B, 3>,      // [num_samples, 128, 128]
     pub labels: Tensor<B, 1, Int>, // [num_samples]
+    pub num_classes: usize,
+    pub class_weights: Vec<f32>,
 }
 
 impl<B: Backend> STMDataset<B> {
@@ -61,7 +63,9 @@ impl<B: Backend> STMDataset<B> {
             (vec_f32, shape)
         };
         let images_data = TensorData::new(images_vec_f32, images_shape);
-        let images = Tensor::from_data(images_data, device);
+        let mut images = Tensor::from_data(images_data, device);
+
+        images = Self::normalize_per_scanline(images);
 
         // Check if labels are i32 handle i64 and return Vec i32 _
         let labels_nd_f32: std::result::Result<ndarray::Array1<i32>, _> =
@@ -100,7 +104,15 @@ impl<B: Backend> STMDataset<B> {
         let labels_data = TensorData::new(labels_vec_f32, labels_shape);
         let labels = Tensor::from_data(labels_data, device);
 
-        Ok(STMDataset { images, labels })
+        let num_classes = Self::compute_num_classes(&labels);
+        let class_weights = Self::compute_weights(&labels, num_classes);
+
+        Ok(STMDataset {
+            images,
+            labels,
+            num_classes,
+            class_weights,
+        })
     }
 
     pub fn len(&self) -> usize {
@@ -110,6 +122,7 @@ impl<B: Backend> STMDataset<B> {
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
+
     pub fn train_val_test_split(
         path: &str,
         device: &B::Device,
@@ -145,16 +158,75 @@ impl<B: Backend> STMDataset<B> {
             Self {
                 images: images_shuffled.clone().slice(0..train_end),
                 labels: labels_shuffled.clone().slice(0..train_end),
+                num_classes: full.num_classes,
+                class_weights: full.class_weights.clone(),
             },
             Self {
                 images: images_shuffled.clone().slice(train_end..val_end),
                 labels: labels_shuffled.clone().slice(train_end..val_end),
+                num_classes: full.num_classes,
+                class_weights: full.class_weights.clone(),
             },
             Self {
                 images: images_shuffled.slice(val_end..n),
                 labels: labels_shuffled.slice(val_end..n),
+                num_classes: full.num_classes,
+                class_weights: full.class_weights.clone(),
             },
         ))
+    }
+
+    fn normalize_per_scanline(images: Tensor<B, 3>) -> Tensor<B, 3> {
+        // Input: [num_samples, num_lines, pixels_per_lin]
+
+        let mean = images.clone().mean_dim(2).unsqueeze_dim(2);
+
+        let variance = images.clone().var(2).unsqueeze_dim(2);
+        let std = variance.sqrt();
+
+        let epsilon = 1e-8;
+        (images - mean) / (std + epsilon)
+    }
+
+    fn compute_num_classes(labels: &Tensor<B, 1, Int>) -> usize {
+        let label_data = labels.clone().into_data();
+        let labels_vec: Vec<i32> =
+            label_data.to_vec().expect("Failed to get labels");
+
+        let max_label = labels_vec.iter().max().unwrap_or(&0);
+        (*max_label as usize) + 1
+    }
+
+    fn compute_weights(
+        labels: &Tensor<B, 1, Int>,
+        num_classes: usize,
+    ) -> Vec<f32> {
+        // Convert labels tensor to Vec<i32>
+        let labels_data = labels.clone().into_data();
+        let labels_vec: Vec<i32> =
+            labels_data.to_vec().expect("Failed to get labels");
+        //Count samples per class
+        let mut class_counts = vec![0usize; num_classes];
+        for &label in &labels_vec {
+            if label >= 0 && (label as usize) < num_classes {
+                class_counts[label as usize] += 1;
+            }
+        }
+
+        // Compute weights: inverse frequency normalized
+        let total_samples = labels_vec.len() as f32;
+        let weights: Vec<f32> = class_counts
+            .iter()
+            .map(|&count| {
+                if count > 0 {
+                    total_samples / (count as f32 * num_classes as f32)
+                } else {
+                    0.0
+                }
+            })
+            .collect();
+
+        weights
     }
 }
 
