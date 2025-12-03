@@ -178,11 +178,11 @@ impl<B: Backend> STMDataset<B> {
     }
 
     fn normalize_per_scanline(images: Tensor<B, 3>) -> Tensor<B, 3> {
-        // Input: [num_samples, num_lines, pixels_per_lin]
+        // Input: [num_samples, num_lines, pixels_per_line]
+        // Normalize each scanline independently across the pixel dimension
 
-        let mean = images.clone().mean_dim(2).unsqueeze_dim(2);
-
-        let variance = images.clone().var(2).unsqueeze_dim(2);
+        let mean = images.clone().mean_dim(2);
+        let variance = images.clone().var(2);
         let std = variance.sqrt();
 
         let epsilon = 1e-8;
