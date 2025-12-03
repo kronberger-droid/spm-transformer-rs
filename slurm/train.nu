@@ -1,6 +1,6 @@
 #!/usr/bin/env nu
 #
-#SBATCH --job-name=stm-rust-transformer
+#SBATCH --job-name=spm-rust-transformer
 #SBATCH --output=/share/rusty-tip/logs/train_rust_%j.out
 #SBATCH --error=/share/rusty-tip/logs/train_rust_%j.err
 #SBATCH --time=04:00:00
@@ -93,7 +93,7 @@ let args = [
 
   # Container and binary
   $container
-  $"($container_app)/target/release/stm-transformer"
+  $"($container_app)/target/release/spm-transformer"
 
   # Training arguments
   "--learning-rate" $"($lr)"
