@@ -31,9 +31,11 @@ Build Job Information:
 # Build Phase
 # ===========
 
+print "Cleaning previous build artifacts..."
+^apptainer exec --bind $"($code_dir):/app" $container sh -c "cd /app && cargo clean"
+
 print "Building with CUDA support..."
-^apptainer exec --nv --bind $"($code_dir):/app" $container sh -c "cd /app &&
-cargo build --release --features cuda"
+^apptainer exec --nv --bind $"($code_dir):/app" $container sh -c "cd /app && cargo build --release --features cuda"
 
 let exit_code = $env.LAST_EXIT_CODE
 
