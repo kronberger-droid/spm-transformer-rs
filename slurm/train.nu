@@ -15,14 +15,18 @@
 # Environment Setup
 # =================
 
-# Directories
+# Host paths
 let code_dir = $"($env.HOME)/rust/spm-transformer-rs"
 let container = "/share/rusty-tip/apptainer/stm-transformer.sif"
 let data_dir = "/share/rusty-tip/data"
 
-# Set environment variables for Rust to use
-$env.DATA_PATH = $"($data_dir)/processed_data.npz"
-$env.CHECKPOINT_BASE_DIR = $"($data_dir)/checkpoints"
+# Container paths (used inside apptainer after bind mounts)
+let container_data = "/data"
+let container_app = "/app"
+
+# Environment variables passed to container (must use container paths)
+$env.DATA_PATH = $"($container_data)/processed_data.npz"
+$env.CHECKPOINT_BASE_DIR = $"($container_data)/checkpoints"
 
 # Enter project directory
 cd $code_dir
@@ -53,10 +57,13 @@ if not (($"($code_dir)/target/release/stm-transformer" | path exists)) {
   exit 1
 }
 
+# Training hyperparameters
 let epochs = 50
 let batch_size = 32
-let lr = 0.0001  # Fixed: was 0.001
+let lr = 0.0001
 let warmup_epochs = 5
+
+# Model architecture
 let d_model = 256
 let num_heads = 8
 let num_layers = 6
@@ -70,16 +77,25 @@ print $"\nStarting training with configuration:
   Checkpoint base: ($env.CHECKPOINT_BASE_DIR)
 "
 
-# Training arguments (without the apptainer command itself)
+# Build apptainer command
 let args = [
+  # Apptainer options
   "exec" "--nv"
-  "--bind" $"($code_dir):/app"
-  "--bind" $"($data_dir):/data"
+
+  # Bind mounts (host:container)
+  "--bind" $"($code_dir):($container_app)"
+  "--bind" $"($data_dir):($container_data)"
+
+  # Environment variables
   "--env" $"DATA_PATH=($env.DATA_PATH)"
   "--env" $"CHECKPOINT_BASE_DIR=($env.CHECKPOINT_BASE_DIR)"
   "--env" $"SLURM_JOB_ID=($env.SLURM_JOB_ID)"
+
+  # Container and binary
   $container
-  "/app/target/release/stm-transformer"
+  $"($container_app)/target/release/stm-transformer"
+
+  # Training arguments
   "--learning-rate" $"($lr)"
   "--batch-size" $"($batch_size)"
   "--num-epochs" $"($epochs)"
@@ -101,7 +117,7 @@ print ""
 if $exit_code == 0 {
   print $"
 ✓ Training completed successfully!
-  Checkpoints saved to: ($env.CHECKPOINT_BASE_DIR)/<timestamp>_j($env.SLURM_JOB_ID)
+  Checkpoints saved to: ($data_dir)/checkpoints/<timestamp>_j($env.SLURM_JOB_ID)
   Job ID: ($env.SLURM_JOB_ID)
 "
 } else {
