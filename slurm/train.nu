@@ -8,8 +8,8 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=32G
-#SBATCH --gpus=a40:1
-#SBATCH --partition=GPU-a40
+#SBATCH --gpus=a100:1
+#SBATCH --partition=GPU-a100
 
 # =================
 # Environment Setup
