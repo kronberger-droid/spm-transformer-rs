@@ -51,7 +51,7 @@ System Information:
 # ===========
 
 # Check binary exists (should be built with slurm/build.nu first)
-if not (($"($code_dir)/target/release/stm-transformer" | path exists)) {
+if not (($"($code_dir)/target/release/spm-transformer" | path exists)) {
   print "Error: Binary not found!"
   print "Please run: sbatch slurm/build.nu first"
   exit 1
