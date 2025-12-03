@@ -9,8 +9,11 @@ use burn::{
     lr_scheduler::linear::LinearLrSchedulerConfig,
     optim::AdamWConfig,
     train::{
-        metric::{AccuracyMetric, LossMetric},
-        LearnerBuilder, LearningStrategy,
+        metric::{
+            store::{Aggregate, Direction, Split},
+            AccuracyMetric, LossMetric,
+        },
+        LearnerBuilder, LearningStrategy, MetricEarlyStoppingStrategy, StoppingCondition,
     },
 };
 use chrono::Local;
@@ -56,6 +59,9 @@ struct Args {
 
     #[arg(long, env = "WEIGHT_DECAY", default_value_t = 0.01)]
     weight_decay: f32,
+
+    #[arg(long, env = "EARLY_STOPPING_PATIENCE", default_value_t = 10)]
+    early_stopping_patience: usize,
 
     // Model Architecture
     #[arg(long, env = "D_MODEL", default_value_t = 256)]
@@ -216,6 +222,15 @@ fn main() {
         .metric_train_numeric(LossMetric::new())
         .metric_valid_numeric(LossMetric::new())
         .with_file_checkpointer(burn::record::CompactRecorder::new())
+        .early_stopping(MetricEarlyStoppingStrategy::new(
+            &LossMetric::<MyBackend>::new(),
+            Aggregate::Mean,
+            Direction::Lowest,
+            Split::Valid,
+            StoppingCondition::NoImprovementSince {
+                n_epochs: args.early_stopping_patience,
+            },
+        ))
         .learning_strategy(LearningStrategy::SingleDevice(device.clone()))
         .num_epochs(args.num_epochs)
         .build(
