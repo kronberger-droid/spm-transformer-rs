@@ -2,41 +2,8 @@
 
 Last updated: 2025-12-02
 
-## Immediate Actions 🔥
-
-### Fix #5: Increase Transformer Layers to 6
-**Priority**: High
-**Effort**: Trivial (1 line change)
-**Status**: Ready to implement
-
-**Change**:
-```rust
-// src/main.rs, line ~61
-#[arg(long, default_value_t = 6)]  // Change from 4 to 6
-num_layers: usize,
-```
-
-**Why**: Match Python implementation for fair comparison
-
----
-
-### Test Training Run
-**Priority**: Critical
-**Effort**: Medium (requires cluster access)
-**Status**: Blocked by Fix #5
-
-**Steps**:
-1. Complete Fix #5 (increase layers)
-2. Submit training job to cluster (10-20 epochs)
-3. Monitor training metrics
-4. Analyze results and decide next steps
-
-**Expected Outcomes**:
-- ~50-60% accuracy → proceed to architectural changes
-- <45% accuracy → debug required
-- >60% accuracy → continue incremental improvements
-
----
+## Errors:
+- [ ] Fix: rust cant create checkpoint dir. Might not be mounted to container?
 
 ## Phase 1: Baseline ViT (Current)
 
@@ -53,7 +20,7 @@ num_layers: usize,
 
 ---
 
-## Phase 2: Incremental Improvements (If ViT shows promise)
+## Phase 2: Incremental Improvements (If ViT showms promise)
 
 ### Training Improvements
 - [ ] Add weight decay to AdamW (e.g., 0.05)
@@ -106,19 +73,13 @@ num_layers: usize,
 ## Infrastructure TODOs
 
 ### Code Quality
-- [ ] Remove unused `TrainingConfig` struct
-- [ ] Add `#[allow(dead_code)]` for `is_empty()` or remove it
+- [x] Remove unused `TrainingConfig` struct
+- [x] Add `#[allow(dead_code)]` for `is_empty()` or remove it
 - [ ] Add more logging/debugging output
 - [ ] Add unit tests for data loading
 - [ ] Add unit tests for model forward pass
 
 ### Documentation
-- [x] Create .claude/ folder structure
-- [x] Create PROGRESS.md
-- [x] Create ARCHITECTURE.md
-- [x] Create REFERENCE.md
-- [x] Create TODOS.md
-- [ ] Update main README.md with project overview
 - [ ] Add inline code comments for complex sections
 
 ### Tooling
@@ -141,9 +102,6 @@ None - all critical path items are unblocked.
 2. **What batch size for cluster training?**
    - Current: 32 (matches Python)
    - Consider: 64 or 128 if GPU memory allows
-
-3. **How many epochs for first test run?**
-   - Recommendation: 10-20 epochs to see convergence trend
 
 4. **Should we implement ReduceLROnPlateau now?**
    - Current: Linear warmup only
