@@ -7,7 +7,7 @@ use burn::{
     backend::Autodiff,
     data::dataloader::DataLoaderBuilder,
     lr_scheduler::linear::LinearLrSchedulerConfig,
-    optim::AdamConfig,
+    optim::AdamWConfig,
     train::{
         metric::{AccuracyMetric, LossMetric},
         LearnerBuilder, LearningStrategy,
@@ -216,7 +216,11 @@ fn main() {
         .with_file_checkpointer(burn::record::CompactRecorder::new())
         .learning_strategy(LearningStrategy::SingleDevice(device.clone()))
         .num_epochs(args.num_epochs)
-        .build(model, AdamConfig::new().init(), scheduler);
+        .build(
+            model,
+            AdamWConfig::new().with_weight_decay(0.01).init(),
+            scheduler,
+        );
 
     println!("\nStarting training...");
     let _trained_model = learner.fit(dataloader_train, dataloader_valid);
