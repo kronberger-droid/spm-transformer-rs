@@ -15,7 +15,7 @@
 # =================
 
 let code_dir = $"($env.HOME)/rust/spm-transformer-rs"
-let container = "/share/rusty-tip/apptainer/spm-transformer.sif"
+let container = "/share/rusty-tip/apptainer/stm-transformer.sif"
 
 cd $code_dir
 
