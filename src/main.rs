@@ -36,45 +36,48 @@ type MyAutodiffBackend = Autodiff<MyBackend>;
 #[command(version, about, long_about = None)]
 struct Args {
     // Training Hyperparameters
-    #[arg(short, long, default_value_t = 1e-4)]
+    #[arg(short, long, env = "LEARNING_RATE", default_value_t = 1e-4)]
     learning_rate: f64,
 
-    #[arg(long, default_value_t = 5)]
+    #[arg(long, env = "WARMUP_EPOCHS", default_value_t = 5)]
     warmup_epochs: usize,
 
-    #[arg(short, long, default_value_t = 32)]
+    #[arg(short, long, env = "BATCH_SIZE", default_value_t = 32)]
     batch_size: usize,
 
-    #[arg(short, long, default_value_t = 10)]
+    #[arg(short, long, env = "NUM_EPOCHS", default_value_t = 10)]
     num_epochs: usize,
 
-    #[arg(short, long, default_value_t = 42)]
+    #[arg(short, long, env = "SEED", default_value_t = 42)]
     seed: u64,
 
-    #[arg(long, default_value_t = 4)]
+    #[arg(long, env = "NUM_WORKERS", default_value_t = 4)]
     num_workers: usize,
 
+    #[arg(long, env = "WEIGHT_DECAY", default_value_t = 0.01)]
+    weight_decay: f32,
+
     // Model Architecture
-    #[arg(long, default_value_t = 256)]
+    #[arg(long, env = "D_MODEL", default_value_t = 256)]
     d_model: usize,
 
-    #[arg(long, default_value_t = 8)]
+    #[arg(long, env = "NUM_HEADS", default_value_t = 8)]
     num_heads: usize,
 
-    #[arg(long, default_value_t = 6)]
+    #[arg(long, env = "NUM_LAYERS", default_value_t = 6)]
     num_layers: usize,
 
-    #[arg(long, default_value_t = 0.1)]
+    #[arg(long, env = "DROPOUT", default_value_t = 0.1)]
     dropout: f64,
 
     // Data
     #[arg(long, env = "DATA_PATH", default_value_t = String::from("data/processed_data.npz"))]
     data_path: String,
 
-    #[arg(long, default_value_t = 0.7)]
+    #[arg(long, env = "TRAIN_RATIO", default_value_t = 0.7)]
     train_ratio: f32,
 
-    #[arg(long, default_value_t = 0.15)]
+    #[arg(long, env = "VAL_RATIO", default_value_t = 0.15)]
     val_ratio: f32,
 
     // Checkpoints and Logging
@@ -197,8 +200,7 @@ fn main() {
         model_config.init::<MyAutodiffBackend>(&device, Some(class_weights));
 
     // Calculate steps per epoch (using stored length)
-    let steps_per_epoch =
-        (train_dataset_len + args.batch_size - 1) / args.batch_size;
+    let steps_per_epoch = train_dataset_len.div_ceil(args.batch_size);
     let warmup_steps = args.warmup_epochs * steps_per_epoch;
 
     println!("Setting up learner...");
@@ -218,7 +220,9 @@ fn main() {
         .num_epochs(args.num_epochs)
         .build(
             model,
-            AdamWConfig::new().with_weight_decay(0.01).init(),
+            AdamWConfig::new()
+                .with_weight_decay(args.weight_decay)
+                .init(),
             scheduler,
         );
 

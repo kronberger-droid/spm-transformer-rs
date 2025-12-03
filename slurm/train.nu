@@ -28,6 +28,19 @@ let container_app = "/app"
 $env.DATA_PATH = $"($container_data)/processed_data.npz"
 $env.CHECKPOINT_BASE_DIR = $"($container_data)/checkpoints"
 
+# Training hyperparameters (via environment variables)
+$env.NUM_EPOCHS = "50"
+$env.BATCH_SIZE = "32"
+$env.LEARNING_RATE = "0.0001"
+$env.WARMUP_EPOCHS = "5"
+$env.WEIGHT_DECAY = "0.01"
+$env.DROPOUT = "0.1"
+
+# Model architecture
+$env.D_MODEL = "256"
+$env.NUM_HEADS = "8"
+$env.NUM_LAYERS = "6"
+
 # Enter project directory
 cd $code_dir
 
@@ -57,22 +70,14 @@ if not (($"($code_dir)/target/release/spm-transformer" | path exists)) {
   exit 1
 }
 
-# Training hyperparameters
-let epochs = 50
-let batch_size = 32
-let lr = 0.0001
-let warmup_epochs = 5
-
-# Model architecture
-let d_model = 256
-let num_heads = 8
-let num_layers = 6
-
 print $"\nStarting training with configuration:
-  Epochs: ($epochs)
-  Batch size: ($batch_size)
-  Learning rate: ($lr)
-  Model: d_model=($d_model), heads=($num_heads), layers=($num_layers)
+  Epochs: ($env.NUM_EPOCHS)
+  Batch size: ($env.BATCH_SIZE)
+  Learning rate: ($env.LEARNING_RATE)
+  Warmup epochs: ($env.WARMUP_EPOCHS)
+  Weight decay: ($env.WEIGHT_DECAY)
+  Dropout: ($env.DROPOUT)
+  Model: d_model=($env.D_MODEL), heads=($env.NUM_HEADS), layers=($env.NUM_LAYERS)
   Data: ($env.DATA_PATH)
   Checkpoint base: ($env.CHECKPOINT_BASE_DIR)
 "
@@ -86,24 +91,24 @@ let args = [
   "--bind" $"($code_dir):($container_app)"
   "--bind" $"($data_dir):($container_data)"
 
-  # Environment variables
+  # Environment variables - all hyperparameters passed via env
   "--env" $"DATA_PATH=($env.DATA_PATH)"
   "--env" $"CHECKPOINT_BASE_DIR=($env.CHECKPOINT_BASE_DIR)"
   "--env" $"SLURM_JOB_ID=($env.SLURM_JOB_ID)"
+  "--env" $"NUM_EPOCHS=($env.NUM_EPOCHS)"
+  "--env" $"BATCH_SIZE=($env.BATCH_SIZE)"
+  "--env" $"LEARNING_RATE=($env.LEARNING_RATE)"
+  "--env" $"WARMUP_EPOCHS=($env.WARMUP_EPOCHS)"
+  "--env" $"WEIGHT_DECAY=($env.WEIGHT_DECAY)"
+  "--env" $"DROPOUT=($env.DROPOUT)"
+  "--env" $"D_MODEL=($env.D_MODEL)"
+  "--env" $"NUM_HEADS=($env.NUM_HEADS)"
+  "--env" $"NUM_LAYERS=($env.NUM_LAYERS)"
+  "--env" $"NUM_WORKERS=($env.SLURM_CPUS_PER_TASK)"
 
-  # Container and binary
+  # Container and binary (no CLI args needed - all via env)
   $container
   $"($container_app)/target/release/spm-transformer"
-
-  # Training arguments
-  "--learning-rate" $"($lr)"
-  "--batch-size" $"($batch_size)"
-  "--num-epochs" $"($epochs)"
-  "--warmup-epochs" $"($warmup_epochs)"
-  "--d-model" $"($d_model)"
-  "--num-heads" $"($num_heads)"
-  "--num-layers" $"($num_layers)"
-  "--num-workers" $"($env.SLURM_CPUS_PER_TASK)"
 ]
 
 # Run training
