@@ -67,29 +67,49 @@ Last updated: 2025-12-02
 
 ### In Progress 🔄
 
+None - all critical fixes completed!
+
+---
+
 #### Fix #5: Increase Transformer Layers
-**Status**: 🔄 Ready to implement
-**Required Change**:
-```rust
-// src/main.rs, line ~61
-#[arg(long, default_value_t = 6)]  // Change from 4 to 6
-num_layers: usize,
-```
+**Status**: ✅ Complete
+**Changes**: Updated default from 4 to 6 layers in `src/main.rs`
+**Impact**: Medium - more model capacity
 
-**Expected Impact**: Medium - more model capacity
+---
 
-**Blockers**: None
+### First Training Results 🎉
+
+**Validation Accuracy**: 66.5% (epoch 49)
+**Training Accuracy**: 83.2% (epoch 50)
+
+**Analysis**:
+- ✅ **Massive improvement**: 36% → 66.5% (+30 points!)
+- ✅ **Beats Python baseline**: 39% → 66.5% (+27 points!)
+- ⚠️ **Overfitting detected**: 17-point train/valid gap
+- ⚠️ **Validation loss increased** after epoch 27 (best: 1.237 @ epoch 27, latest: 1.444 @ epoch 50)
+
+**Conclusion**: All 5 fixes worked! Model is learning well but overfitting. Need regularization.
 
 ---
 
 ### Next Steps 📋
 
-1. **Immediate**: Increase layers to 6
-2. **Test Training**: Run 5-10 epoch experiment with all fixes
-3. **Evaluate Results**:
-   - If ~50-60% accuracy → proceed to architectural changes
-   - If <45% accuracy → debug
-   - If >60% accuracy → continue incremental improvements
+**Phase 2a: Address Overfitting** (Target: 70-73% validation)
+1. Add weight decay to optimizer (0.01-0.05)
+2. Tune dropout (try 0.15, 0.2)
+3. Add early stopping (stop at epoch ~27-30)
+4. Add ReduceLROnPlateau after warmup
+
+**Phase 2b: If Still < 75%**
+5. Add online data augmentation
+6. Increase model capacity (d_model=512, layers=8)
+7. Longer training with early stopping
+
+**Phase 3: Sequential Transformer** (If ViT plateaus < 80%)
+- Implement causal masking
+- Add CNN tokenization per scanline
+- Target: 85%+ validation accuracy (match Gordon et al. 2020)
 
 ---
 
@@ -114,8 +134,10 @@ See `EXPERIMENTS.md` for detailed results.
 - **Rust ViT**: 36% accuracy, 1.60 loss (epoch 50)
 - **Python ViT**: 39% accuracy, 0.66 AUROC (epoch 39)
 
-### With Fixes
-- **Run 1**: TBD
+### With All 5 Fixes ✅
+- **Run 1**: 66.5% validation accuracy (epoch 49), 83.2% train accuracy
+- **Improvement**: +30 points over baseline, +27 points over Python
+- **Issue**: Overfitting (17-point gap)
 
 ---
 

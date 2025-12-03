@@ -80,32 +80,60 @@ Training stopped: epoch 54 (early stopping)
 
 ## Experiments with Fixes (Phase 1)
 
-### Experiment: TBD - First test with all fixes
-**Date**: Pending
-**Status**: Not yet run
+### Experiment: Run 1 - All 5 fixes applied 🎉
+**Date**: 2025-12-03
+**Status**: ✅ Complete
 
-**Configuration** (Planned):
-- Model: ScanLineEncoder (ViT)
-- Layers: 6 ✅ (increased from 4)
+**Configuration**:
+- Model: ScanLineEncoder (ViT - global attention, no causal masking)
+- Layers: 6 ✅
 - d_model: 256
 - Heads: 8
-- LR: 1e-4 ✅ (lowered from 1e-3)
+- LR: 1e-4 ✅
 - LR Schedule: ✅ Linear warmup (1e-6 → 1e-4 over 5 epochs)
 - Batch size: 32
-- Epochs: 10-20 (initial test)
-- Class weights: ✅ Computed from data
+- Epochs: 50
+- Dropout: 0.1
+- Class weights: ✅ [2.845, 0.569, 1.478, 0.823]
 - Normalization: ✅ Per-scanline (mean=0, std=1)
-- Num classes: ✅ 4 (inferred from data)
+- Num classes: ✅ 4 (auto-detected)
+- Weight decay: ❌ None (not yet added)
 
-**Expected Results**:
-- Validation accuracy: 50-60% (if fixes work)
-- Training should be more stable
-- Should see improvement over baseline
+**Results**:
+```
+=== train directory ===
+Total epochs: 50
+Best accuracy: 83.1928 (epoch 50)
+Best loss: 0.357031 (epoch 50)
 
-**Success Criteria**:
-- Accuracy > 45% → fixes are helping
-- Accuracy > 55% → proceed with incremental improvements
-- Accuracy < 45% → need debugging
+=== valid directory ===
+Total epochs: 50
+Best accuracy: 66.4982 (epoch 49)
+Best loss: 1.237079 (epoch 27) ← Validation loss increased after this!
+Latest accuracy: 66.1257 (epoch 50)
+Latest loss: 1.443985 (epoch 50)
+```
+
+**Analysis**:
+- ✅ **HUGE SUCCESS!** Validation: 66.5% (vs baseline 36%)
+- ✅ **+30 percentage points improvement** from all fixes
+- ✅ **Beats Python ViT by 27 points** (66.5% vs 39%)
+- ⚠️ **Overfitting**: 17-point train/valid gap (83% vs 66%)
+- ⚠️ **Validation loss degraded** after epoch 27 (1.237 → 1.444)
+- 📊 Training still improving at epoch 50 (not saturated)
+
+**Key Insights**:
+1. All 5 critical fixes worked perfectly
+2. Model has capacity to learn (83% train accuracy)
+3. **Needs regularization** - overfitting is the bottleneck
+4. Optimal stopping point: epoch 27-30
+5. Still ViT architecture (not sequential transformer yet)
+
+**Next Steps**:
+1. Add weight decay (try 0.01, 0.05)
+2. Increase dropout (try 0.15, 0.2)
+3. Add early stopping
+4. Target: 70-73% validation accuracy
 
 ---
 

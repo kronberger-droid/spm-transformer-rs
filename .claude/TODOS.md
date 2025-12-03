@@ -1,22 +1,55 @@
 # Active TODOs
 
-Last updated: 2025-12-02
+Last updated: 2025-12-03
 
-## Errors:
-- [ ] Fix: rust cant create checkpoint dir. Might not be mounted to container?
-
-## Phase 1: Baseline ViT (Current)
+## Phase 1: Baseline ViT ✅ COMPLETE!
 
 ### Completed ✅
 - [x] Fix #1: Class weights implementation
 - [x] Fix #2: Per-scanline normalization
 - [x] Fix #3: Learning rate + warmup scheduler
 - [x] Fix #4: Number of classes (inferred from data)
+- [x] Fix #5: Increase layers to 6
+- [x] Test training run with all fixes
 - [x] Documentation restructure (.claude/ folder)
+- [x] Create separate build.nu script
+- [x] Remove unused training.rs file
 
-### In Progress 🔄
-- [ ] Fix #5: Increase layers to 6
-- [ ] Test training run with all fixes
+**Result**: 66.5% validation accuracy (vs 36% baseline) - SUCCESS! 🎉
+
+---
+
+## Phase 2: Address Overfitting (CURRENT PRIORITY) 🔥
+
+**Problem**: Train 83%, Valid 66% (17-point gap)
+**Goal**: 70-73% validation accuracy
+
+### Immediate Actions (Priority Order)
+
+1. **Add Weight Decay** ⭐ HIGHEST PRIORITY
+   - [ ] Modify `AdamConfig` in main.rs to use `.with_weight_decay(0.01)`
+   - [ ] Test with 0.01, then try 0.05 if needed
+   - **Effort**: 5 minutes
+   - **Expected**: +2-3% validation, reduce overfitting
+
+2. **Tune Dropout**
+   - [ ] Test with `--dropout 0.15`
+   - [ ] Test with `--dropout 0.2`
+   - **Effort**: 2 minutes (CLI arg only)
+   - **Expected**: +1-2% validation
+
+3. **Add Early Stopping**
+   - [ ] Research Burn's early stopping support
+   - [ ] Implement custom callback if needed
+   - [ ] Stop when validation loss doesn't improve for 5-10 epochs
+   - **Effort**: 30-60 minutes
+   - **Expected**: Saves compute, stops at optimal point (~epoch 27-30)
+
+4. **Add ReduceLROnPlateau**
+   - [ ] Compose with LinearLrScheduler (after warmup)
+   - [ ] Reduce LR by 0.5 when valid loss plateaus
+   - **Effort**: 20 minutes
+   - **Expected**: Better fine-tuning in later epochs
 
 ---
 

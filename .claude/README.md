@@ -14,11 +14,18 @@ This folder contains project documentation, progress tracking, and planning docu
 
 **Goal**: Replicate Gordon et al. 2020 performance (96.0% AUROC, 84.7% balanced accuracy)
 
-**Current Status**: Implementing critical fixes to baseline ViT model
-- ✅ Class weights implemented
-- ✅ Per-scanline normalization implemented
-- ✅ Learning rate lowered + warmup scheduler added
-- ✅ Number of classes fixed (4 instead of 6)
-- 🔄 Next: Increase layers to 6, then test training
+**Phase 1: Critical Fixes** ✅ COMPLETE
+- ✅ All 5 fixes implemented and tested
+- ✅ **Result**: 66.5% validation accuracy (was 36% baseline)
+- ✅ **+30 percentage points improvement!**
+- ✅ Beats Python ViT by 27 points (66.5% vs 39%)
 
-**Latest Results**: TBD (pending first training run with fixes)
+**Phase 2: Address Overfitting** 🔄 CURRENT
+- **Problem**: Train 83%, Valid 66% (17-point gap)
+- **Next**: Add weight decay, tune dropout, early stopping
+- **Target**: 70-73% validation accuracy
+
+**Latest Results** (2025-12-03):
+- Validation: 66.5% accuracy, 1.24 loss (best @ epoch 27)
+- Training: 83.2% accuracy, 0.36 loss (epoch 50)
+- Overfitting after epoch 27 → need regularization

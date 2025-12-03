@@ -2,6 +2,8 @@
 
 Rust implementation of a deep learning model for classifying STM (Scanning Tunneling Microscopy) tip states from scan line images.
 
+> **📚 For AI Assistants**: See [`.claude/INSTRUCTIONS.md`](.claude/INSTRUCTIONS.md) for project context and current status.
+
 ## Goal
 
 Replicate the performance of **Gordon et al. 2020** ("Embedding Human Heuristics in Machine Learning for Probe Microscopy"):
@@ -59,16 +61,21 @@ cargo run --release --bin analyze -- --checkpoints-path checkpoints/[run_id]/
 
 ## Current Status
 
-**Phase**: Baseline ViT with critical fixes
+**Phase**: Address Overfitting (Phase 2)
 
-**Recent Progress**:
-- ✅ Implemented class weights for imbalanced dataset
-- ✅ Added per-scanline normalization (mean=0, std=1)
-- ✅ Lowered learning rate (1e-3 → 1e-4) with warmup scheduler
-- ✅ Fixed number of classes (auto-detected from data)
-- 🔄 Next: Increase layers to 6, test training
+**Phase 1 Results** ✅:
+- **Validation**: 66.5% accuracy (was 36% baseline) - **+30 points!**
+- **Training**: 83.2% accuracy
+- **Achievement**: Beats Python ViT by 27 points!
+- **Issue**: Overfitting (17-point train/valid gap)
 
-**Latest Results**: Pending first training run with fixes
+**Phase 2 Goals** 🔄:
+- Add weight decay to reduce overfitting
+- Tune dropout (0.15, 0.2)
+- Implement early stopping
+- Target: 70-73% validation accuracy
+
+**Latest Results** (2025-12-03): See `.claude/EXPERIMENTS.md` for full details
 
 ## Model Architecture
 
