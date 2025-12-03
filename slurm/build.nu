@@ -1,6 +1,6 @@
 #!/usr/bin/env nu
 #
-#SBATCH --job-name=stm-build
+#SBATCH --job-name=spm-transformer-build
 #SBATCH --output=/share/rusty-tip/logs/build_rust_%j.out
 #SBATCH --error=/share/rusty-tip/logs/build_rust_%j.err
 #SBATCH --time=00:30:00
@@ -15,7 +15,7 @@
 # =================
 
 let code_dir = $"($env.HOME)/rust/spm-transformer-rs"
-let container = "/share/rusty-tip/apptainer/stm-transformer.sif"
+let container = "/share/rusty-tip/apptainer/spm-transformer.sif"
 
 cd $code_dir
 
@@ -41,7 +41,7 @@ let exit_code = $env.LAST_EXIT_CODE
 
 if $exit_code == 0 {
   print $"\n✓ Build successful!
-  Binary: ($code_dir)/target/release/stm-transformer
+  Binary: ($code_dir)/target/release/spm-transformer
   Ready for training jobs.
 "
 } else {
