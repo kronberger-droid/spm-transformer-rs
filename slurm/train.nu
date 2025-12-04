@@ -36,6 +36,9 @@ $env.WARMUP_EPOCHS = "5"
 $env.WEIGHT_DECAY = "0.01"
 $env.DROPOUT = "0.1"
 
+# Model selection
+$env.MODEL = "sequential"  # Options: "vit" or "sequential"
+
 # Model architecture
 $env.D_MODEL = "256"
 $env.NUM_HEADS = "8"
@@ -71,13 +74,14 @@ if not (($"($code_dir)/target/release/spm-transformer" | path exists)) {
 }
 
 print $"\nStarting training with configuration:
+  Model type: ($env.MODEL)
   Epochs: ($env.NUM_EPOCHS)
   Batch size: ($env.BATCH_SIZE)
   Learning rate: ($env.LEARNING_RATE)
   Warmup epochs: ($env.WARMUP_EPOCHS)
   Weight decay: ($env.WEIGHT_DECAY)
   Dropout: ($env.DROPOUT)
-  Model: d_model=($env.D_MODEL), heads=($env.NUM_HEADS), layers=($env.NUM_LAYERS)
+  Architecture: d_model=($env.D_MODEL), heads=($env.NUM_HEADS), layers=($env.NUM_LAYERS)
   Data: ($env.DATA_PATH)
   Checkpoint base: ($env.CHECKPOINT_BASE_DIR)
 "
@@ -95,6 +99,7 @@ let args = [
   "--env" $"DATA_PATH=($env.DATA_PATH)"
   "--env" $"CHECKPOINT_BASE_DIR=($env.CHECKPOINT_BASE_DIR)"
   "--env" $"SLURM_JOB_ID=($env.SLURM_JOB_ID)"
+  "--env" $"MODEL=($env.MODEL)"
   "--env" $"NUM_EPOCHS=($env.NUM_EPOCHS)"
   "--env" $"BATCH_SIZE=($env.BATCH_SIZE)"
   "--env" $"LEARNING_RATE=($env.LEARNING_RATE)"

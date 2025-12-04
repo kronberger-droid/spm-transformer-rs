@@ -1,5 +1,7 @@
 mod data;
 mod model;
+mod tokenizer;
+mod utils;
 
 use std::{fs::File, path::PathBuf};
 
@@ -8,12 +10,14 @@ use burn::{
     data::dataloader::DataLoaderBuilder,
     lr_scheduler::linear::LinearLrSchedulerConfig,
     optim::AdamWConfig,
+    tensor::backend::Backend,
     train::{
         metric::{
             store::{Aggregate, Direction, Split},
             AccuracyMetric, LossMetric,
         },
-        LearnerBuilder, LearningStrategy, MetricEarlyStoppingStrategy, StoppingCondition,
+        ClassificationOutput, LearnerBuilder, LearningStrategy,
+        MetricEarlyStoppingStrategy, StoppingCondition, TrainStep, ValidStep,
     },
 };
 use chrono::Local;
@@ -21,8 +25,8 @@ use clap::Parser;
 use serde::Serialize;
 
 use crate::{
-    data::{STMBatcher, STMDataset},
-    model::ScanLineEncoderConfig,
+    data::{STMBatch, STMBatcher, STMDataset},
+    model::{ScanLineEncoderConfig, SequentialScanLineEncoderConfig},
 };
 
 // Backend selection: CUDA for cluster, NdArray for local testing
@@ -64,6 +68,9 @@ struct Args {
     early_stopping_patience: usize,
 
     // Model Architecture
+    #[arg(long, env = "MODEL", default_value_t = String::from("vit"))]
+    model: String,
+
     #[arg(long, env = "D_MODEL", default_value_t = 256)]
     d_model: usize,
 
@@ -108,6 +115,79 @@ fn create_checkpoint_dir(base_dir: &str) -> Result<String, std::io::Error> {
     std::fs::create_dir_all(&checkpoint_dir)?;
 
     Ok(checkpoint_dir.to_string_lossy().to_string())
+}
+
+fn train_model<M>(
+    model: M,
+    train_dataset: STMDataset<MyBackend>,
+    val_dataset: STMDataset<MyBackend>,
+    train_dataset_len: usize,
+    args: &Args,
+    device: &<MyBackend as Backend>::Device,
+    checkpoint_dir: &str,
+) where
+    M: burn::module::Module<MyAutodiffBackend>
+        + burn::module::AutodiffModule<MyAutodiffBackend>
+        + TrainStep<STMBatch<MyAutodiffBackend>, ClassificationOutput<MyAutodiffBackend>>
+        + std::fmt::Display
+        + 'static,
+    M::InnerModule: ValidStep<STMBatch<MyBackend>, ClassificationOutput<MyBackend>>,
+{
+    // Train batcher uses autodiff (for gradients), valid uses plain backend
+    let batcher_train = STMBatcher::<MyAutodiffBackend>::new(device.clone());
+    let batcher_valid = STMBatcher::<MyBackend>::new(device.clone());
+
+    println!("\nCreating dataloaders...");
+    let dataloader_train = DataLoaderBuilder::new(batcher_train)
+        .batch_size(args.batch_size)
+        .shuffle(args.seed)
+        .num_workers(args.num_workers)
+        .build(train_dataset);
+
+    let dataloader_valid = DataLoaderBuilder::new(batcher_valid)
+        .batch_size(args.batch_size)
+        .shuffle(args.seed)
+        .num_workers(args.num_workers)
+        .build(val_dataset);
+
+    // Calculate steps per epoch
+    let steps_per_epoch = train_dataset_len.div_ceil(args.batch_size);
+    let warmup_steps = args.warmup_epochs * steps_per_epoch;
+
+    println!("Setting up learner...");
+
+    let scheduler =
+        LinearLrSchedulerConfig::new(1e-6, args.learning_rate, warmup_steps)
+            .init()
+            .expect("Failed to create LR scheduler");
+
+    let learner = LearnerBuilder::new(checkpoint_dir)
+        .metric_train_numeric(AccuracyMetric::new())
+        .metric_valid_numeric(AccuracyMetric::new())
+        .metric_train_numeric(LossMetric::new())
+        .metric_valid_numeric(LossMetric::new())
+        .with_file_checkpointer(burn::record::CompactRecorder::new())
+        .early_stopping(MetricEarlyStoppingStrategy::new(
+            &LossMetric::<MyBackend>::new(),
+            Aggregate::Mean,
+            Direction::Lowest,
+            Split::Valid,
+            StoppingCondition::NoImprovementSince {
+                n_epochs: args.early_stopping_patience,
+            },
+        ))
+        .learning_strategy(LearningStrategy::SingleDevice(device.clone()))
+        .num_epochs(args.num_epochs)
+        .build(
+            model,
+            AdamWConfig::new()
+                .with_weight_decay(args.weight_decay)
+                .init(),
+            scheduler,
+        );
+
+    println!("\nStarting training...");
+    let _trained_model = learner.fit(dataloader_train, dataloader_valid);
 }
 
 fn main() {
@@ -165,84 +245,73 @@ fn main() {
 
     println!("\nUsing {num_classes} classes with weights: {class_weights:?}");
 
-    // Create model config
-    let model_config = ScanLineEncoderConfig::new(
-        128, // pixels_per_line (fixed by data format)
-        args.d_model,
-        args.num_heads,
-        args.num_layers,
-        128,         // max_lines (fixed by data format)
-        num_classes, // from dataset
-    );
+    // Train model based on selection
+    match args.model.as_str() {
+        "vit" => {
+            let model_config = ScanLineEncoderConfig::new(
+                128, // pixels_per_line (fixed by data format)
+                args.d_model,
+                args.num_heads,
+                args.num_layers,
+                128,         // max_lines (fixed by data format)
+                num_classes, // from dataset
+            )
+            .with_dropout(args.dropout);
 
-    // Set dropout in config
-    let model_config = model_config.with_dropout(args.dropout);
+            println!("\nInitializing ViT model...");
+            println!("  d_model: {}", model_config.d_model);
+            println!("  num_heads: {}", model_config.num_heads);
+            println!("  num_layers: {}", model_config.num_layers);
+            println!("  dropout: {}", model_config.dropout);
 
-    println!("\nInitializing model...");
-    println!("  d_model: {}", model_config.d_model);
-    println!("  num_heads: {}", model_config.num_heads);
-    println!("  num_layers: {}", model_config.num_layers);
-    println!("  dropout: {}", model_config.dropout);
+            let model = model_config
+                .init::<MyAutodiffBackend>(&device, Some(class_weights));
 
-    // Train batcher uses autodiff (for gradients), valid uses plain backend
-    let batcher_train = STMBatcher::<MyAutodiffBackend>::new(device.clone());
-    let batcher_valid = STMBatcher::<MyBackend>::new(device.clone());
+            train_model(
+                model,
+                train_dataset,
+                val_dataset,
+                train_dataset_len,
+                &args,
+                &device,
+                &checkpoint_dir,
+            );
+        }
+        "sequential" => {
+            let model_config = SequentialScanLineEncoderConfig::new(
+                128,
+                args.d_model,
+                args.num_heads,
+                args.num_layers,
+                128,
+                num_classes,
+            )
+            .with_dropout(args.dropout);
 
-    println!("\nCreating dataloaders...");
-    let dataloader_train = DataLoaderBuilder::new(batcher_train)
-        .batch_size(args.batch_size)
-        .shuffle(args.seed)
-        .num_workers(args.num_workers)
-        .build(train_dataset);
+            println!("\nInitializing Sequential model...");
+            println!("  d_model: {}", model_config.d_model);
+            println!("  num_heads: {}", model_config.num_heads);
+            println!("  num_layers: {}", model_config.num_layers);
+            println!("  dropout: {}", model_config.dropout);
 
-    let dataloader_valid = DataLoaderBuilder::new(batcher_valid)
-        .batch_size(args.batch_size)
-        .shuffle(args.seed)
-        .num_workers(args.num_workers)
-        .build(val_dataset);
+            let model = model_config
+                .init::<MyAutodiffBackend>(&device, Some(class_weights));
 
-    // Model uses autodiff backend for training
-    let model =
-        model_config.init::<MyAutodiffBackend>(&device, Some(class_weights));
-
-    // Calculate steps per epoch (using stored length)
-    let steps_per_epoch = train_dataset_len.div_ceil(args.batch_size);
-    let warmup_steps = args.warmup_epochs * steps_per_epoch;
-
-    println!("Setting up learner...");
-
-    let scheduler =
-        LinearLrSchedulerConfig::new(1e-6, args.learning_rate, warmup_steps)
-            .init()
-            .expect("Failed to create LR scheduler");
-
-    let learner = LearnerBuilder::new(&checkpoint_dir)
-        .metric_train_numeric(AccuracyMetric::new())
-        .metric_valid_numeric(AccuracyMetric::new())
-        .metric_train_numeric(LossMetric::new())
-        .metric_valid_numeric(LossMetric::new())
-        .with_file_checkpointer(burn::record::CompactRecorder::new())
-        .early_stopping(MetricEarlyStoppingStrategy::new(
-            &LossMetric::<MyBackend>::new(),
-            Aggregate::Mean,
-            Direction::Lowest,
-            Split::Valid,
-            StoppingCondition::NoImprovementSince {
-                n_epochs: args.early_stopping_patience,
-            },
-        ))
-        .learning_strategy(LearningStrategy::SingleDevice(device.clone()))
-        .num_epochs(args.num_epochs)
-        .build(
-            model,
-            AdamWConfig::new()
-                .with_weight_decay(args.weight_decay)
-                .init(),
-            scheduler,
-        );
-
-    println!("\nStarting training...");
-    let _trained_model = learner.fit(dataloader_train, dataloader_valid);
+            train_model(
+                model,
+                train_dataset,
+                val_dataset,
+                train_dataset_len,
+                &args,
+                &device,
+                &checkpoint_dir,
+            );
+        }
+        _ => panic!(
+            "Unknown model type: {}. Use 'vit' or 'sequential'",
+            args.model
+        ),
+    }
 
     println!("\n✓ Training complete!");
     println!("Model saved to {}", checkpoint_dir);

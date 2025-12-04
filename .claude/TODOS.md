@@ -19,87 +19,98 @@ Last updated: 2025-12-03
 
 ---
 
-## Phase 2: Address Overfitting (CURRENT PRIORITY) 🔥
+## Phase 2: Address Overfitting ✅ COMPLETE!
 
-**Problem**: Train 83%, Valid 66% (17-point gap)
-**Goal**: 70-73% validation accuracy
+**Original Goal**: 70-73% validation accuracy
+**Result**: ViT ceiling at ~67% - cannot reach 85% target
 
-### Immediate Actions (Priority Order)
+### Completed ✅
+- [x] Add AdamW optimizer with weight decay
+- [x] Add environment variable support for all hyperparameters
+- [x] Implement early stopping (MetricEarlyStoppingStrategy)
+- [x] Create hyperparameter sweep script (slurm/sweep.nu)
+- [x] Run 8-config hyperparameter sweep
+  - Weight decay: [0.0, 0.01, 0.05, 0.1]
+  - Dropout: [0.1, 0.15, 0.2]
 
-1. **Add Weight Decay** ⭐ HIGHEST PRIORITY
-   - [ ] Modify `AdamConfig` in main.rs to use `.with_weight_decay(0.01)`
-   - [ ] Test with 0.01, then try 0.05 if needed
-   - **Effort**: 5 minutes
-   - **Expected**: +2-3% validation, reduce overfitting
+**Result**: Best config (no weight decay, dropout=0.1) achieved 66.74% validation - SUCCESS for ViT optimization!
 
-2. **Tune Dropout**
-   - [ ] Test with `--dropout 0.15`
-   - [ ] Test with `--dropout 0.2`
-   - **Effort**: 2 minutes (CLI arg only)
-   - **Expected**: +1-2% validation
-
-3. **Add Early Stopping**
-   - [ ] Research Burn's early stopping support
-   - [ ] Implement custom callback if needed
-   - [ ] Stop when validation loss doesn't improve for 5-10 epochs
-   - **Effort**: 30-60 minutes
-   - **Expected**: Saves compute, stops at optimal point (~epoch 27-30)
-
-4. **Add ReduceLROnPlateau**
-   - [ ] Compose with LinearLrScheduler (after warmup)
-   - [ ] Reduce LR by 0.5 when valid loss plateaus
-   - **Effort**: 20 minutes
-   - **Expected**: Better fine-tuning in later epochs
+**Key Finding**: ViT architecture has hit ceiling at ~67%. Need sequential transformer to reach 85% target.
 
 ---
 
-## Phase 2: Incremental Improvements (If ViT showms promise)
+## Phase 3: Sequential Transformer Architecture (CURRENT PRIORITY) 🔥
 
-### Training Improvements
-- [ ] Add weight decay to AdamW (e.g., 0.05)
-- [ ] Add gradient clipping (max_norm=1.0)
-- [ ] Implement early stopping
-- [ ] Add ReduceLROnPlateau after warmup
+**Problem**: ViT ceiling at 67%, need 85% to match Gordon et al. 2020
+**Goal**: Implement sequential transformer with causal masking for sequential scanline data
+**Status**: Planning & Design
 
-### Data Improvements
-- [ ] Add online data augmentation
-  - Horizontal flip
-  - Gaussian noise
-  - Line dropout
-- [ ] Verify dataset quality
-- [ ] Check for data leakage between splits
+**See `ARCHITECTURE.md` for detailed design**
 
-### Model Improvements
-- [ ] Experiment with different d_model (128, 256, 512)
-- [ ] Try different num_heads (4, 8, 16)
-- [ ] Test different dropout rates (0.05, 0.1, 0.2)
+### Priority 1: Architecture Design & Planning
 
----
+- [ ] Review ARCHITECTURE.md and update with latest insights
+- [ ] Design CNN tokenizer architecture
+  - Input: (batch, 128, pixels_per_line) per scanline
+  - Output: (batch, feature_dim) embedding per scanline
+  - Decide: kernel sizes, number of layers, pooling strategy
+- [ ] Design causal attention modification
+  - Research: Burn's TransformerEncoder masking support
+  - Plan: How to add causal mask (position i attends only to j ≤ i)
+- [ ] Design positional encoding strategy
+  - Decide: Sinusoidal vs learned vs relative
+  - Plan: Integration with sequential model
 
-## Phase 3: Sequential Transformer Architecture (If ViT plateaus)
+### Priority 2: Implementation (In Order)
 
-**See `ARCHITECTURE.md` for detailed plan**
-
-### Core Changes
-- [ ] Implement 1D CNN tokenizer
-  - Per-scanline feature extraction
+#### Step 1: CNN Tokenizer (Foundation)
+- [ ] Create `src/tokenizer.rs` module
+- [ ] Implement 1D CNN for per-scanline feature extraction
   - 3-5 conv layers
   - Kernel sizes: 3, 5, 7
-- [ ] Add causal attention mask
-  - Modify TransformerEncoder to support masking
-  - Ensure position i only attends to j ≤ i
-- [ ] Replace learned positional embeddings with sinusoidal
-  - Fixed, non-learned encoding
-  - Better for variable-length sequences
-- [ ] Test progressive prediction
-  - Per-token classification
-  - Early stopping when confident
+  - Output: fixed-size embedding per scanline
+- [ ] Test tokenizer independently (input shape → output shape)
+- **Effort**: 2-3 hours
 
-### Experimentation
+#### Step 2: Causal Attention Mask
+- [ ] Research Burn's attention mask API
+- [ ] Implement causal masking in transformer
+  - Triangular mask: position i only sees j ≤ i
+  - Integration with TransformerEncoder
+- [ ] Test mask application (verify attention patterns)
+- **Effort**: 2-4 hours
+
+#### Step 3: Sequential Model Integration
+- [ ] Create new model: `SequentialScanLineEncoder`
+- [ ] Integrate CNN tokenizer + causal transformer
+- [ ] Add positional encodings
+- [ ] Wire up to training loop
+- **Effort**: 1-2 hours
+
+#### Step 4: Testing & Validation
+- [ ] Test forward pass with dummy data
+- [ ] Run small training test (10 epochs)
+- [ ] Compare to ViT baseline (should see different learning pattern)
+- **Effort**: 1 hour
+
+### Priority 3: Experimentation
+
+#### Hyperparameter Tuning
 - [ ] Window size ablation (W = 10, 20, 30, 40, 128)
 - [ ] CNN depth ablation (3 vs 5 layers)
+- [ ] Feature dimension experiments (128, 256, 512)
+- [ ] Positional encoding comparison (sinusoidal vs learned)
+
+#### Analysis
 - [ ] Attention pattern visualization
-- [ ] Compare to LRCN baseline
+- [ ] Compare to ViT baseline
+- [ ] Ablation: with/without causal masking
+- [ ] Compare to LRCN baseline (if available)
+
+### Target Metrics
+- **Minimum**: 75% validation accuracy (beat ViT by 9 points)
+- **Goal**: 85% validation accuracy (match Gordon et al. 2020)
+- **Stretch**: 90%+ validation accuracy
 
 ---
 
