@@ -37,7 +37,7 @@ $env.WEIGHT_DECAY = "0.01"
 $env.DROPOUT = "0.1"
 
 # Model selection
-$env.MODEL = "sequential"  # Options: "vit" or "sequential"
+$env.MODEL = "vit"  # Options: "vit" or "sequential"
 
 # Model architecture
 $env.D_MODEL = "256"

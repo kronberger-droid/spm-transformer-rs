@@ -17,7 +17,10 @@ use burn::{
     train::{ClassificationOutput, TrainOutput, TrainStep, ValidStep},
 };
 
-use crate::data::STMBatch;
+use crate::{
+    data::STMBatch,
+    tokenizer::{CnnTokenizer, CnnTokenizerConfig},
+};
 
 #[derive(Config, Debug)]
 pub struct ScanLineEncoderConfig {
@@ -40,7 +43,7 @@ pub struct ScanLineEncoderConfig {
 
 #[derive(Module, Debug)]
 pub struct ScanLineEncoder<B: Backend> {
-    line_embedding: Linear<B>,
+    cnn_tokenizer: CnnTokenizer<B>,
     pos_embedding: Embedding<B>,
     cls_token: Param<Tensor<B, 1>>,
     transformer: TransformerEncoder<B>,
@@ -56,17 +59,17 @@ impl ScanLineEncoderConfig {
         device: &B::Device,
         class_weights: Option<Vec<f32>>,
     ) -> ScanLineEncoder<B> {
+        let seq_length = self.max_lines + 1;
+
         ScanLineEncoder {
-            line_embedding: LinearConfig::new(
+            cnn_tokenizer: CnnTokenizerConfig::new(
                 self.pixels_per_line,
                 self.d_model,
+                self.dropout,
             )
             .init(device),
-            pos_embedding: EmbeddingConfig::new(
-                self.max_lines + 1,
-                self.d_model,
-            )
-            .init(device),
+            pos_embedding: EmbeddingConfig::new(seq_length, self.d_model)
+                .init(device),
             cls_token: Param::from_tensor(Tensor::random(
                 [self.d_model],
                 Distribution::Uniform(-0.02, 0.02),
@@ -95,8 +98,8 @@ impl<B: Backend> ScanLineEncoder<B> {
         // Input: [batch_size, num_lines, pixels_per_line], e.g., [32, 128, 128]
         let [batch_size, num_lines, _] = scans.dims();
 
-        // Embed each scan line: [batch, num_lines, pixels_per_line] -> [batch, num_lines, d_model]
-        let embedded = self.line_embedding.forward(scans);
+        // Tokenize each scan line using CNN: [batch, num_lines, pixels_per_line] -> [batch, num_lines, d_model]
+        let embedded = self.cnn_tokenizer.forward(scans);
         let device = embedded.device();
 
         // Prepare CLS token for each batch item: [d_model] -> [batch, 1, d_model]
